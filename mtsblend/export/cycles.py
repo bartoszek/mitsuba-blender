@@ -23,8 +23,6 @@
 
 from collections import OrderedDict
 
-from ..export import get_export_path
-
 RoughnessMode = {'GGX': 'ggx', 'SHARP': 'beckmann', 'BECKMANN': 'beckmann'}
 
 
@@ -57,7 +55,7 @@ def IOR_transform(node):
     return params
 
 
-def convert_float_texture_node(mts_context, socket):
+def convert_float_texture_node(export_ctx, socket):
     params = None
 
     if socket.is_linked:
@@ -66,8 +64,7 @@ def convert_float_texture_node(mts_context, socket):
         if node.type == "TEX_IMAGE":
             params = {
                 'type': 'bitmap',
-                'id': node.image.name,
-                'filename': get_export_path(mts_context, node.image.filepath)
+                'image': node.image
             }
 
     else:
@@ -76,7 +73,7 @@ def convert_float_texture_node(mts_context, socket):
     return params
 
 
-def convert_color_texture_node(mts_context, socket):
+def convert_color_texture_node(export_ctx, socket):
     params = None
 
     if socket.is_linked:
@@ -85,20 +82,19 @@ def convert_color_texture_node(mts_context, socket):
         if node.type == "TEX_IMAGE":
             params = {
                 'type': 'bitmap',
-                'id': node.image.name,
-                'filename': get_export_path(mts_context, node.image.filepath)
+                'image': node.image
             }
 
     else:
-        params = mts_context.spectrum(socket.default_value)
+        params = export_ctx.spectrum(socket.default_value)
 
     return params
 
 
-def convert_diffuse_materials_cycles(mts_context, currentNode):
+def convert_diffuse_materials_cycles(export_ctx, currentNode):
     params = {}
 
-    roughness = convert_float_texture_node(mts_context, currentNode.inputs['Roughness'])
+    roughness = convert_float_texture_node(export_ctx, currentNode.inputs['Roughness'])
     if roughness:
         params.update({
             'type': 'roughdiffuse',
@@ -111,7 +107,7 @@ def convert_diffuse_materials_cycles(mts_context, currentNode):
             'type': 'diffuse',
         })
 
-    reflectance = convert_color_texture_node(mts_context, currentNode.inputs['Color'])
+    reflectance = convert_color_texture_node(export_ctx, currentNode.inputs['Color'])
 
     if reflectance is not None:
         params.update({
@@ -121,10 +117,10 @@ def convert_diffuse_materials_cycles(mts_context, currentNode):
     return params
 
 
-def convert_glossy_materials_cycles(mts_context, currentNode):
+def convert_glossy_materials_cycles(export_ctx, currentNode):
     params = {'material': 'none'}
 
-    roughness = convert_float_texture_node(mts_context, currentNode.inputs['Roughness'])
+    roughness = convert_float_texture_node(export_ctx, currentNode.inputs['Roughness'])
 
     if roughness:
         params.update({
@@ -138,7 +134,7 @@ def convert_glossy_materials_cycles(mts_context, currentNode):
             'type': 'conductor',
         })
 
-    specular_reflectance = convert_color_texture_node(mts_context, currentNode.inputs['Color'])
+    specular_reflectance = convert_color_texture_node(export_ctx, currentNode.inputs['Color'])
 
     if specular_reflectance is not None:
         params.update({
@@ -148,11 +144,11 @@ def convert_glossy_materials_cycles(mts_context, currentNode):
     return params
 
 
-def convert_glass_materials_cycles(mts_context, currentNode):
+def convert_glass_materials_cycles(export_ctx, currentNode):
     params = IOR_transform(currentNode)
 
     if 'type' not in params:
-        roughness = convert_float_texture_node(mts_context, currentNode.inputs['Roughness'])
+        roughness = convert_float_texture_node(export_ctx, currentNode.inputs['Roughness'])
 
         if roughness:
             params.update({
@@ -166,7 +162,7 @@ def convert_glass_materials_cycles(mts_context, currentNode):
                 'type': 'dielectric',
             })
 
-    specular_transmittance = convert_color_texture_node(mts_context, currentNode.inputs['Color'])
+    specular_transmittance = convert_color_texture_node(export_ctx, currentNode.inputs['Color'])
 
     if specular_transmittance is not None:
         params.update({
@@ -176,13 +172,13 @@ def convert_glass_materials_cycles(mts_context, currentNode):
     return params
 
 
-def convert_transparent_materials_cycles(mts_context, currentNode):
+def convert_transparent_materials_cycles(export_ctx, currentNode):
     params = {
         'type': 'thindielectric',
         'intIOR': 1.0,
     }
 
-    specular_transmittance = convert_color_texture_node(mts_context, currentNode.inputs['Color'])
+    specular_transmittance = convert_color_texture_node(export_ctx, currentNode.inputs['Color'])
 
     if specular_transmittance is not None:
         params.update({
@@ -192,12 +188,12 @@ def convert_transparent_materials_cycles(mts_context, currentNode):
     return params
 
 
-def convert_translucent_materials_cycles(mts_context, currentNode):
+def convert_translucent_materials_cycles(export_ctx, currentNode):
     params = {
         'type': 'difftrans',
     }
 
-    transmittance = convert_color_texture_node(mts_context, currentNode.inputs['Color'])
+    transmittance = convert_color_texture_node(export_ctx, currentNode.inputs['Color'])
 
     if transmittance is not None:
         params.update({
@@ -207,11 +203,11 @@ def convert_translucent_materials_cycles(mts_context, currentNode):
     return params
 
 
-def convert_refraction_materials_cycles(mts_context, currentNode):
+def convert_refraction_materials_cycles(export_ctx, currentNode):
     params = IOR_transform(currentNode)
 
     if 'type' not in params:
-        roughness = convert_float_texture_node(mts_context, currentNode.inputs['Roughness'])
+        roughness = convert_float_texture_node(export_ctx, currentNode.inputs['Roughness'])
 
         if roughness:
             params.update({
@@ -225,7 +221,7 @@ def convert_refraction_materials_cycles(mts_context, currentNode):
                 'type': 'dielectric',
             })
 
-    specular_transmittance = convert_color_texture_node(mts_context, currentNode.inputs['Color'])
+    specular_transmittance = convert_color_texture_node(export_ctx, currentNode.inputs['Color'])
 
     if specular_transmittance is not None:
         params.update({
@@ -235,7 +231,7 @@ def convert_refraction_materials_cycles(mts_context, currentNode):
     return params
 
 
-def convert_emitter_materials_cycles(mts_context, currentNode):
+def convert_emitter_materials_cycles(export_ctx, currentNode):
     radiance = 10
 
     if  currentNode.inputs["Strength"].is_linked:
@@ -252,13 +248,13 @@ def convert_emitter_materials_cycles(mts_context, currentNode):
 
     params = {
         'type': 'area',
-        'radiance': mts_context.spectrum(radiance),
+        'radiance': export_ctx.spectrum(radiance),
     }
 
     return params
 
 
-def convert_mix_materials_cycles(mts_context, currentNode):
+def convert_mix_materials_cycles(export_ctx, currentNode):
     addShader = (currentNode.type == 'ADD_SHADER')
 
     # in the case of AddShader 1-True = 0
@@ -269,8 +265,8 @@ def convert_mix_materials_cycles(mts_context, currentNode):
     emitter = ((mat_I.type == 'EMISSION') or (mat_II.type == 'EMISSION'))
 
     if emitter:
-        params = cycles_material_to_dict(mts_context, mat_I)
-        params.update(cycles_material_to_dict(mts_context, mat_II))
+        params = cycles_material_to_dict(export_ctx, mat_I)
+        params.update(cycles_material_to_dict(export_ctx, mat_II))
 
         return params
 
@@ -287,13 +283,13 @@ def convert_mix_materials_cycles(mts_context, currentNode):
         ])
 
         # add first material
-        mat_A = cycles_material_to_dict(mts_context, mat_I)
+        mat_A = cycles_material_to_dict(export_ctx, mat_I)
         params.update([
             ('bsdf1', mat_A['bsdf'])
         ])
 
         # add second materials
-        mat_B = cycles_material_to_dict(mts_context, mat_II)
+        mat_B = cycles_material_to_dict(export_ctx, mat_II)
         params.update([
             ('bsdf2', mat_B['bsdf'])
         ])
@@ -314,12 +310,12 @@ cycles_converters = {
 }
 
 
-def cycles_material_to_dict(mts_context, node):
+def cycles_material_to_dict(export_ctx, node):
     ''' Converting one material from Blender to Mitsuba dict'''
     params = {}
 
     if node.type in cycles_converters:
-        params = cycles_converters[node.type](mts_context, node)
+        params = cycles_converters[node.type](export_ctx, node)
 
     mat_params = {}
 
